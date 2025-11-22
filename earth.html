@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地球公轉互動模型</title>
+    <style>
+        body {
+            background-color: #1a1a2e;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h2 { margin-bottom: 10px; }
+        .controls {
+            margin-top: 20px;
+            width: 80%;
+            max-width: 600px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+        }
+        input[type=range] {
+            width: 100%;
+            cursor: pointer;
+        }
+        .info-panel {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            font-size: 1.2em;
+        }
+        canvas {
+            border: 2px solid #444;
+            border-radius: 50%;
+            background: radial-gradient(circle, #0b0b1a 0%, #000000 100%);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <h2>🌍 地球公轉模擬器</h2>
+    
+    <canvas id="orbitCanvas" width="500" height="500"></canvas>
+
+    <div class="controls">
+        <label for="daySlider">拖動時間軸調整日期:</label>
+        <br><br>
+        <input type="range" id="daySlider" min="0" max="364" value="80">
+        
+        <div class="info-panel">
+            <div id="dateDisplay">日期: <span style="color: #4db8ff;">3月21日</span></div>
+            <div id="seasonDisplay">節氣: <span style="color: #ffcc00;">春分</span></div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('orbitCanvas');
+        const ctx = canvas.getContext('2d');
+        const slider = document.getElementById('daySlider');
+        const dateDisplay = document.getElementById('dateDisplay');
+        const seasonDisplay = document.getElementById('seasonDisplay');
+
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const orbitRadius = 180;
+        const sunRadius = 30;
+        const earthRadius = 12;
+
+        // 月份天數數據 (非閏年)
+        const daysInMonths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        
+        // 關鍵節氣的大致天數 (從年初開始算)
+        // 春分 ~3月21日 (第80天) -> 設為 0度 (右側)
+        const springEquinoxDay = 80; 
+
+        function getMonthDay(dayOfYear) {
+            let dayCount = dayOfYear + 1; // 0-index 轉 1-index
+            let month = 0;
+            while (dayCount > daysInMonths[month]) {
+                dayCount -= daysInMonths[month];
+                month++;
+            }
+            return `${month + 1}月${dayCount}日`;
+        }
+
+        function getSeason(angle) {
+            // 角度轉為 0-360
+            let deg = (angle * 180 / Math.PI) % 360;
+            if (deg < 0) deg += 360;
+
+            if (deg >= 315 || deg < 45) return "春季 (接近春分)";
+            if (deg >= 45 && deg < 135) return "夏季 (接近夏至)";
+            if (deg >= 135 && deg < 225) return "秋季 (接近秋分)";
+            if (deg >= 225 && deg < 315) return "冬季 (接近冬至)";
+        }
+
+        function draw() {
+            // 清除畫布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. 繪製軌道線
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, orbitRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // 2. 繪製太陽
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, sunRadius, 0, Math.PI * 2);
+            ctx.fillStyle = '#FFD700'; // 金色
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#FFA500';
+            ctx.fill();
+            ctx.shadowBlur = 0; // 重置陰影
+
+            // 3. 計算地球位置
+            const dayOfYear = parseInt(slider.value);
+            
+            // 調整角度：讓春分(第80天)在 0度 (右邊)
+            // 公式: (當前天數 - 春分天數) / 365 * 2PI
+            // 注意：Canvas的Y軸向下，順時針旋轉。如果要逆時針公轉(真實情況)，需要加負號
+            const angle = ((dayOfYear - springEquinoxDay) / 365) * 2 * Math.PI; 
+            
+            // 逆時針公轉修正 (Math.cos(angle), -Math.sin(angle)) 
+            // 這裡使用標準三角函數，Canvas Y軸是反的，所以 -sin 會讓它逆時針轉
+            const earthX = centerX + orbitRadius * Math.cos(angle);
+            const earthY = centerY + orbitRadius * Math.sin(angle); // 順時針視覺效果較好理解，若需天文正確應改為 -sin
+
+            // 4. 繪製地球
+            ctx.beginPath();
+            ctx.arc(earthX, earthY, earthRadius, 0, Math.PI * 2);
+            ctx.fillStyle = '#4db8ff'; // 藍色
+            ctx.fill();
+            
+            // 繪製地球陰影 (簡單版) - 背對太陽的一面是黑的
+            // 這只是視覺效果，計算向量會更精確
+            ctx.beginPath();
+            ctx.arc(earthX, earthY, earthRadius, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fill();
+
+            // 5. 標示文字 (春分夏至等)
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText("春分 (3/21)", centerX + orbitRadius + 40, centerY);
+            ctx.fillText("夏至 (6/21)", centerX, centerY + orbitRadius + 25);
+            ctx.fillText("秋分 (9/23)", centerX - orbitRadius - 40, centerY);
+            ctx.fillText("冬至 (12/22)", centerX, centerY - orbitRadius - 25);
+
+            // 更新 UI 文字
+            dateDisplay.innerHTML = `日期: <span style="color: #4db8ff;">${getMonthDay(dayOfYear)}</span>`;
+            seasonDisplay.innerHTML = `季節: <span style="color: #ffcc00;">${getSeason(angle)}</span>`;
+        }
+
+        // 監聽滑動條變化
+        slider.addEventListener('input', draw);
+
+        // 初始繪製
+        draw();
+    </script>
+</body>
+</html>
