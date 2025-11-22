@@ -1,125 +1,121 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <base target="_top">
-  <title>班級看板</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>班級廣播 (Firebase極速版)</title>
   <style>
-    body { font-family: 'Microsoft JhengHei', sans-serif; background-color: #f4f6f7; text-align: center; padding: 20px; margin: 0; }
+    body { font-family: 'Microsoft JhengHei', sans-serif; background: #2c3e50; color: white; text-align: center; padding: 20px; }
     
-    /* 1. 選擇班級畫面 */
-    #select-view { display: block; max-width: 800px; margin: 0 auto; }
-    h1 { color: #2c3e50; margin-bottom: 30px; }
-    
-    .grid-box {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr); /* 三欄 */
-      gap: 20px; 
-    }
-    
-    .class-btn {
-      background: white;
-      border: 2px solid #3498db;
-      border-radius: 15px;
-      padding: 40px 0;
-      font-size: 36px;
-      font-weight: bold;
-      color: #2c3e50;
-      cursor: pointer;
-      box-shadow: 0 5px 0 #2980b9;
-      transition: all 0.1s;
-    }
-    .class-btn:active { box-shadow: 0 2px 0 #2980b9; transform: translateY(3px); }
+    /* 選單區 */
+    #select-view { max-width: 800px; margin: 50px auto; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .btn { padding: 40px; font-size: 32px; background: white; color: #333; border-radius: 15px; cursor: pointer; font-weight: bold; border: 4px solid transparent; transition: 0.2s; }
+    .btn:hover { border-color: #f1c40f; transform: scale(1.05); }
 
-    /* 2. 監聽畫面 (原本隱藏) */
+    /* 監聽區 */
     #monitor-view { display: none; margin-top: 50px; }
-    .monitor-card {
-      background: white; padding: 50px; border-radius: 20px;
-      box-shadow: 0 10px 20px rgba(0,0,0,0.1); display: inline-block;
-    }
-    .dot { display: inline-block; width: 15px; height: 15px; background: #2ecc71; border-radius: 50%; margin-right: 10px; animation: blink 1s infinite; }
-    @keyframes blink { 50% { opacity: 0; } }
-
-    /* 3. 彈出視窗 (全螢幕) */
-    #popup {
-      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.9); z-index: 9999;
-      justify-content: center; align-items: center; flex-direction: column;
-    }
-    #popup-content {
-      background: #f1c40f; color: #c0392b; width: 80%; max-width: 600px;
-      padding: 40px; border-radius: 30px; text-align: center; border: 10px solid white;
-      animation: pop 0.3s ease-out;
-    }
-    @keyframes pop { from {transform: scale(0);} to {transform: scale(1);} }
+    .status-box { background: rgba(255,255,255,0.1); padding: 40px; border-radius: 20px; display: inline-block; border: 2px solid #3498db; }
+    .online-dot { height: 15px; width: 15px; background-color: #2ecc71; border-radius: 50%; display: inline-block; box-shadow: 0 0 10px #2ecc71; animation: pulse 2s infinite; }
     
-    .big-name { font-size: 80px; font-weight: bold; margin: 20px 0; }
-    .close-btn { font-size: 30px; padding: 15px 60px; background: white; border: none; border-radius: 50px; cursor: pointer; color: #333; font-weight: bold; }
+    /* 彈出視窗 */
+    #popup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(231, 76, 60, 0.95); z-index: 999; flex-direction: column; justify-content: center; align-items: center; animation: shake 0.5s; }
+    .student-name { font-size: 100px; font-weight: bold; margin: 20px 0; text-shadow: 2px 2px 10px rgba(0,0,0,0.3); }
+    .close-btn { font-size: 30px; padding: 15px 50px; background: white; color: #c0392b; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; margin-top: 30px;}
+
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    @keyframes shake { 0% { transform: translate(1px, 1px) rotate(0deg); } 10% { transform: translate(-1px, -2px) rotate(-1deg); } 20% { transform: translate(-3px, 0px) rotate(1deg); } 30% { transform: translate(3px, 2px) rotate(0deg); } 40% { transform: translate(1px, -1px) rotate(1deg); } 50% { transform: translate(-1px, 2px) rotate(-1deg); } 60% { transform: translate(-3px, 1px) rotate(0deg); } 70% { transform: translate(3px, 1px) rotate(-1deg); } 80% { transform: translate(-1px, -1px) rotate(1deg); } 90% { transform: translate(1px, 2px) rotate(0deg); } 100% { transform: translate(1px, -2px) rotate(-1deg); } }
   </style>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
 </head>
 <body>
 
   <div id="select-view">
-    <h1>🏫 請點選您的班級</h1>
-    <div class="grid-box">
-      <button class="class-btn" onclick="start('1a')">1a</button>
-      <button class="class-btn" onclick="start('2a')">2a</button>
-      <button class="class-btn" onclick="start('3a')">3a</button>
-      <button class="class-btn" onclick="start('4a')">4a</button>
-      <button class="class-btn" onclick="start('5a')">5a</button>
-      <button class="class-btn" onclick="start('6a')">6a</button>
+    <h1>🚀 請選擇您的班級</h1>
+    <div class="grid">
+      <div class="btn" onclick="startMonitor('1a')">1a</div>
+      <div class="btn" onclick="startMonitor('2a')">2a</div>
+      <div class="btn" onclick="startMonitor('3a')">3a</div>
+      <div class="btn" onclick="startMonitor('4a')">4a</div>
+      <div class="btn" onclick="startMonitor('5a')">5a</div>
+      <div class="btn" onclick="startMonitor('6a')">6a</div>
     </div>
   </div>
 
   <div id="monitor-view">
-    <div class="monitor-card">
-      <h2 id="monitor-title" style="font-size: 40px; color: #3498db; margin: 0;"></h2>
-      <p style="color: #7f8c8d; font-size: 20px; margin-top: 20px;">
-        <span class="dot"></span>系統連線中...
+    <div class="status-box">
+      <h2 id="class-title" style="font-size: 50px; margin: 0; color: #f1c40f;"></h2>
+      <p style="font-size: 20px; margin-top: 20px;">
+        <span class="online-dot"></span> 連線中 (Firebase Realtime)
       </p>
-      <button onclick="location.reload()" style="margin-top:30px; padding:10px; color:#999; border:none; background:none; cursor:pointer; text-decoration:underline;">重新選擇班級</button>
     </div>
   </div>
 
   <div id="popup">
-    <div id="popup-content">
-      <div style="font-size: 30px;">🔔 家長已抵達</div>
-      <div id="student-name" class="big-name">王小明</div>
-      <button class="close-btn" onclick="closePopup()">收到</button>
-    </div>
+    <div style="font-size: 40px;">🔔 家長已抵達</div>
+    <div id="popup-name" class="student-name">王小明</div>
+    <button class="close-btn" onclick="closePopup()">收到</button>
   </div>
 
   <script>
-    var myClass = "";
-    var lastAlertName = "";
-    var audioCtx;
+    // ============================================
+    // ⚠️ 設定 Firebase Config
+    // 這些資訊不用擔心外洩，因為我們用 Rules 保護
+    var firebaseConfig = {
+      databaseURL: "https://您的專案ID.firebaseio.com", 
+    };
+    // ============================================
 
-    function start(className) {
+    // 初始化 Firebase
+    firebase.initializeApp(firebaseConfig);
+    var database = firebase.database();
+
+    var myClass = "";
+    var audioCtx;
+    var lastTimestamp = 0;
+
+    function startMonitor(className) {
       myClass = className;
-      
-      // 1. 切換介面
       document.getElementById('select-view').style.display = 'none';
       document.getElementById('monitor-view').style.display = 'block';
-      document.getElementById('monitor-title').innerText = myClass + " 班";
+      document.getElementById('class-title').innerText = myClass + " 班";
 
-      // 2. 初始化音效 (利用按鈕點擊事件解鎖瀏覽器音效限制)
+      // 初始化音效
       initAudio();
 
-      // 3. 開始每 3 秒檢查一次
-      setInterval(checkLoop, 3000);
+      // 開始監聽 "latest_scan" 節點
+      // 只要這個節點有任何變動，這個 function 就會瞬間被觸發
+      var ref = database.ref('latest_scan');
+      ref.on('value', (snapshot) => {
+        var data = snapshot.val();
+        if (data) {
+          checkAndAlert(data);
+        }
+      });
     }
 
-    function checkLoop() {
-      google.script.run.withSuccessHandler(function(res) {
-        // 如果有新資料，而且名字跟上次不一樣 (避免一直響)
-        if (res.hasNew && res.name !== lastAlertName) {
-          lastAlertName = res.name;
-          showPopup(res.name);
-        }
-      }).checkNewArrivals(myClass);
+    function checkAndAlert(data) {
+      // 1. 檢查是否為新資料 (避免網頁剛打開就跳出舊通知)
+      var now = new Date().getTime();
+      // 如果資料產生的時間 跟 現在時間 差超過 10秒，視為舊資料，不理會
+      if (now - data.timestamp > 10000) return;
+
+      // 2. 避免重複觸發 (如果 Firebase 瞬間傳送兩次相同資料)
+      if (data.timestamp === lastTimestamp) return;
+      lastTimestamp = data.timestamp;
+
+      // 3. 檢查班級是否相符
+      // 轉成小寫比對 (1A == 1a)
+      if (data.class_name.toLowerCase() === myClass.toLowerCase()) {
+        showPopup(data.name);
+      }
     }
 
     function showPopup(name) {
-      document.getElementById('student-name').innerText = name;
+      document.getElementById('popup-name').innerText = name;
       document.getElementById('popup').style.display = 'flex';
       playDing();
     }
@@ -128,11 +124,9 @@
       document.getElementById('popup').style.display = 'none';
     }
 
-    // --- 音效處理 ---
+    // --- 音效邏輯 ---
     function initAudio() {
-      var AudioContext = window.AudioContext || window.webkitAudioContext;
-      audioCtx = new AudioContext();
-      // 播放一個極短無聲，確保解鎖
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       var osc = audioCtx.createOscillator();
       osc.connect(audioCtx.destination);
       osc.start(0);
@@ -141,24 +135,21 @@
 
     function playDing() {
       if (audioCtx.state === 'suspended') audioCtx.resume();
-      
       var osc = audioCtx.createOscillator();
       var gain = audioCtx.createGain();
       osc.connect(gain);
       gain.connect(audioCtx.destination);
-
-      // 叮咚聲設計
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(660, audioCtx.currentTime); // 叮
-      osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.1); // 咚
+      
+      osc.type = 'triangle'; // 比較響亮的聲音
+      osc.frequency.setValueAtTime(500, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.1);
       
       gain.gain.setValueAtTime(1, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 2);
 
       osc.start(audioCtx.currentTime);
-      osc.stop(audioCtx.currentTime + 1.5);
+      osc.stop(audioCtx.currentTime + 2);
     }
   </script>
-
 </body>
 </html>
