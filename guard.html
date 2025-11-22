@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <title>警衛掃描站</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    body { font-family: sans-serif; background-color: #222; color: white; text-align: center; padding: 20px; margin: 0; }
+    h2 { color: #f1c40f; margin-bottom: 20px; }
+    
+    /* 掃描框樣式 */
+    #reader { width: 100%; max-width: 500px; margin: 0 auto; background: white; border-radius: 8px; }
+    
+    /* 訊息顯示區 */
+    #msg-box { margin-top: 20px; min-height: 100px; padding: 10px; border-radius: 10px; background: #333; }
+    .status-text { font-size: 24px; font-weight: bold; line-height: 1.5; }
+    .success { color: #2ecc71; } /* 綠色 */
+    .error { color: #e74c3c; }   /* 紅色 */
+    .wait { color: #95a5a6; }    /* 灰色 */
+  </style>
+</head>
+<body>
+
+  <h2>👮‍♂️ 家長接送掃描站</h2>
+  <div id="reader"></div>
+  
+  <div id="msg-box">
+    <div id="status-msg" class="status-text wait">請將 QR Code 對準鏡頭</div>
+  </div>
+
+  <script>
+    var isScanning = true;
+
+    function onScanSuccess(decodedText) {
+      if (!isScanning) return;
+      
+      // 1. 鎖定掃描，避免重複送出
+      isScanning = false;
+      updateDisplay("⏳ 讀取中...", "wait");
+
+      // 2. 呼叫後端
+      google.script.run.withSuccessHandler(function(response) {
+        if (response.status === 'success') {
+          // 顯示成功訊息 (班級 + 姓名)
+          updateDisplay("✅ " + response.class_name + "<br>" + response.name + " 已登記", "success");
+        } else {
+          // 顯示錯誤
+          updateDisplay("❌ " + response.message, "error");
+        }
+
+        // 3. 等待 3 秒後恢復掃描
+        setTimeout(function() {
+          updateDisplay("請將 QR Code 對準鏡頭", "wait");
+          isScanning = true;
+        }, 3000);
+
+      }).processScan(decodedText);
+    }
+
+    function updateDisplay(text, type) {
+      var el = document.getElementById('status-msg');
+      el.innerHTML = text;
+      el.className = "status-text " + type;
+    }
+
+    // 啟動相機
+    var html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+    html5QrcodeScanner.render(onScanSuccess);
+  </script>
+
+</body>
+</html>
