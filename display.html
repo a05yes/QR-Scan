@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>接送等待看板</title>
+    <title>接送等待看板 (除錯版)</title>
     <style>
         body {
             font-family: 'Microsoft JhengHei', sans-serif;
@@ -14,7 +14,6 @@
             margin: 0;
         }
 
-        /* 標題區與連線狀態 */
         header {
             position: relative;
             border-bottom: 2px solid #555;
@@ -29,13 +28,16 @@
             margin: 0;
         }
 
-        /* 連線狀態燈 */
-        #connection-status {
+        /* 連線狀態顯示區 */
+        #status-box {
             position: absolute;
             left: 10px;
-            top: 10px;
-            font-size: 14px;
-            color: #aaa;
+            top: 0px;
+            font-size: 16px;
+            background: #333;
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid #555;
         }
 
         .dot {
@@ -45,6 +47,7 @@
             border-radius: 50%;
             display: inline-block;
             margin-right: 5px;
+            vertical-align: middle;
         }
 
         .connected {
@@ -52,7 +55,16 @@
             box-shadow: 0 0 10px #2ecc71;
         }
 
-        /* 卡片容器 (Grid 排版) */
+        /* 錯誤訊息顯示區 (除錯用) */
+        #error-log {
+            color: #ff6b6b;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+            max-width: 300px;
+            word-wrap: break-word;
+        }
+
         #card-container {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -61,7 +73,6 @@
             margin: 0 auto;
         }
 
-        /* 單張卡片樣式 */
         .card {
             background: #333;
             border-radius: 15px;
@@ -70,7 +81,6 @@
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
             transition: all 0.3s;
             border-left: 12px solid #95a5a6;
-            position: relative;
             animation: fadeIn 0.5s;
         }
 
@@ -104,37 +114,30 @@
             font-size: 16px;
         }
 
-        /* 不同狀態的顏色 */
         .status-waiting {
             background: #e67e22;
             color: white;
         }
 
-        /* 等待中 (橘) */
         .status-pack {
             background: #f1c40f;
             color: black;
         }
 
-        /* 收書包 (黃) */
         .status-wc {
             background: #3498db;
             color: white;
         }
 
-        /* 上廁所 (藍) */
         .status-club {
             background: #9b59b6;
             color: white;
         }
 
-        /* 社團 (紫) */
         .status-ok {
             background: #2ecc71;
             color: white;
         }
-
-        /* 收到 (綠) */
 
         @keyframes fadeIn {
             from {
@@ -156,9 +159,131 @@
 <body>
 
     <header>
-        <div id="connection-status"><span id="dot" class="dot"></span><span id="status-text">連線中...</span></div>
+        <div id="status-box">
+            <div><span id="dot" class="dot"></span><span id="status-text">正在連線 Firebase...</span></div>
+            <div id="error-log"></div>
+        </div>
         <h1>📢 家長接送等待看板</h1>
     </header>
 
     <div id="card-container">
-        <div style="text-align: center; grid-column: 1/-1; color: #5
+        <div style="text-align: center; grid-column: 1/-1; color: #555; font-size: 24px; margin-top: 50px;">
+            系統待命中...
+        </div>
+    </div>
+
+    <script>
+        // ------------------------------------------------
+        // 您的 Firebase 設定
+        var firebaseConfig = {
+            databaseURL: "https://schoolpickup-7afca-default-rtdb.asia-southeast1.firebasedatabase.app/"
+        };
+        // ------------------------------------------------
+
+        function showError(msg) {
+            var errDiv = document.getElementById('error-log');
+            errDiv.style.display = 'block';
+            errDiv.innerHTML = "⚠️ 錯誤: " + msg;
+            console.error(msg);
+        }
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+            var database = firebase.database();
+
+            // 1. 測試連線狀態
+            var connectedRef = database.ref(".info/connected");
+            connectedRef.on("value", function (snap) {
+                if (snap.val() === true) {
+                    document.getElementById("dot").classList.add("connected");
+                    document.getElementById("status-text").innerText = "系統已連線 (綠燈)";
+                    document.getElementById("error-log").style.display = 'none'; // 連線成功就隱藏錯誤
+                } else {
+                    document.getElementById("dot").classList.remove("connected");
+                    document.getElementById("status-text").innerText = "連線中斷 (紅燈)";
+                    // 如果一直連不上，通常不會報錯，但會一直停在這裡
+                }
+            });
+
+            // 2. 監聽資料 (增加錯誤捕捉)
+            var ref = database.ref('pickups').limitToLast(12);
+            var cardsData = {};
+
+            ref.on('child_added', (snapshot) => { updateCard(snapshot.val()); }, (error) => {
+                showError("無法讀取資料 (權限或網路不足): " + error.message);
+            });
+
+            ref.on('child_changed', (snapshot) => { updateCard(snapshot.val()); });
+
+        } catch (e) {
+            showError("Firebase 初始化失敗: " + e.message);
+        }
+
+        function updateCard(data) {
+            if (!data) return;
+            var now = new Date().getTime();
+            if (now - data.timestamp > 3600000) return; // 1小時內
+
+            cardsData[data.id] = data;
+            renderAllCards();
+        }
+
+        function renderAllCards() {
+            var container = document.getElementById('card-container');
+            var list = Object.values(cardsData).sort((a, b) => b.timestamp - a.timestamp);
+
+            if (list.length === 0) {
+                // container.innerHTML = '...'; // 保持預設文字
+                return;
+            }
+
+            container.innerHTML = "";
+
+            list.forEach(item => {
+                var statusClass = "status-waiting";
+                var borderColors = "#95a5a6";
+
+                if (item.status.includes("收書包")) { statusClass = "status-pack"; borderColors = "#f1c40f"; }
+                else if (item.status.includes("上廁所")) { statusClass = "status-wc"; borderColors = "#3498db"; }
+                else if (item.status.includes("社團")) { statusClass = "status-club"; borderColors = "#9b59b6"; }
+                else if (item.status.includes("收到")) { statusClass = "status-ok"; borderColors = "#2ecc71"; }
+
+                // 姓名遮蔽
+                var fullName = item.name;
+                var maskedName = fullName;
+                if (fullName.length >= 3) {
+                    maskedName = fullName[0] + "O".repeat(fullName.length - 2) + fullName[fullName.length - 1];
+                } else if (fullName.length === 2) {
+                    maskedName = fullName[0] + "O";
+                }
+
+                var html = `
+          <div class="card" style="border-left-color: ${borderColors}">
+            <div class="class-name">${item.class_name} 班</div>
+            <div class="stu-name">${maskedName}</div>
+            <div class="status ${statusClass}">${item.status}</div>
+            <div class="time-stamp">
+              ${new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 登記
+            </div>
+          </div>
+        `;
+                container.innerHTML += html;
+            });
+        }
+
+        setInterval(() => {
+            var now = new Date().getTime();
+            var hasDeleted = false;
+            for (var key in cardsData) {
+                if (now - cardsData[key].timestamp > 3600000) {
+                    delete cardsData[key];
+                    hasDeleted = true;
+                }
+            }
+            if (hasDeleted) renderAllCards();
+        }, 60000);
+
+    </script>
+</body>
+
+</html>
