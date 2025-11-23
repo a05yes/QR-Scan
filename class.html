@@ -147,37 +147,50 @@
 
         .popup-content {
             background: #2c3e50;
-            padding: 40px;
+            padding: 30px;
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             text-align: center;
             border: 2px solid #f1c40f;
-            max-width: 80%;
-            width: 600px;
+            max-width: 90%;
+            width: 700px;
+            max-height: 80vh;
+            overflow-y: auto;
         }
 
-        .student-info {
-            font-size: 80px;
+        .student-row {
+            background: rgba(255, 255, 255, 0.1);
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-left: 5px solid #f1c40f;
+        }
+
+        .student-name {
+            font-size: 40px;
             font-weight: bold;
             color: white;
-            margin-bottom: 40px;
+            margin-bottom: 10px;
         }
 
         .action-btn-group {
             display: flex;
-            gap: 20px;
+            gap: 10px;
             flex-wrap: wrap;
             justify-content: center;
         }
 
         .action-btn {
-            padding: 15px 30px;
-            font-size: 24px;
+            padding: 8px 16px;
+            font-size: 18px;
             border: none;
-            border-radius: 50px;
+            border-radius: 8px;
             cursor: pointer;
             color: white;
-            margin: 5px;
+            margin: 2px;
         }
 
         .btn-pack {
@@ -230,13 +243,13 @@
 
     <div id="popup">
         <div class="popup-content">
-            <div style="font-size: 30px; color: #f1c40f;">🔔 家長已抵達</div>
-            <div id="popup-info" class="student-info"></div>
-            <div class="action-btn-group">
-                <button class="action-btn btn-pack" onclick="replyStatus('正在收書包')">🎒 收書包</button>
-                <button class="action-btn btn-wc" onclick="replyStatus('上廁所')">🚻 上廁所</button>
-                <button class="action-btn btn-club" onclick="replyStatus('去上社團')">⚽ 去社團</button>
-                <button class="action-btn btn-ok" onclick="replyStatus('收到')">👌 收到</button>
+            <div style="font-size: 24px; color: #f1c40f; margin-bottom: 20px;">🔔 家長已抵達 (請點選回覆)</div>
+            <div id="student-list">
+                <!-- 動態插入學生列表 -->
+            </div>
+            <div style="margin-top: 20px;">
+                <button onclick="closePopup()"
+                    style="background:transparent; border:1px solid #555; color:#777; padding:5px 10px; border-radius:5px; cursor:pointer;">暫時關閉</button>
             </div>
         </div>
     </div>
@@ -251,7 +264,7 @@
 
         var database = firebase.database();
         var myClass = "";
-        var currentData = null;
+        var activeStudents = []; // 改為陣列，儲存多位學生
         var audioCtx;
         var cardsData = {}; // 用於儲存卡片資料，以便判斷是否為新資料
 
@@ -311,43 +324,72 @@
             var incomingClass = data.class_name.toString().toLowerCase().trim();
 
             if (targetClass === incomingClass) {
-                log("🟢 班級符合！準備彈窗！");
-                currentData = data;
-                showPopup(data.name);
+                log("🟢 班級符合！加入列表！");
+
+                // 檢查是否已在列表中
+                var exists = activeStudents.find(s => s.id === data.id);
+                if (!exists) {
+                    activeStudents.push(data);
+                    // 最多保留 5 人
+                    if (activeStudents.length > 5) activeStudents.shift();
+                    renderPopup();
+                    playDing();
+                }
             } else {
                 log("⚪ 班級不符 (目標:" + targetClass + " / 收到:" + incomingClass + ")");
             }
         }
 
-        function showPopup(name) {
-            document.getElementById('popup-info').innerText = name;
-            var popup = document.getElementById('popup');
-            var content = popup.querySelector('.popup-content');
+        function renderPopup() {
+            var listDiv = document.getElementById('student-list');
+            listDiv.innerHTML = "";
 
+            activeStudents.forEach(student => {
+                var html = `
+                    <div class="student-row">
+                        <div class="student-name">${student.name}</div>
+                        <div class="action-btn-group">
+                            <button class="action-btn btn-pack" onclick="replyStatus('${student.id}', '正在收書包')">🎒 收書包</button>
+                            <button class="action-btn btn-wc" onclick="replyStatus('${student.id}', '上廁所')">🚻 上廁所</button>
+                            <button class="action-btn btn-club" onclick="replyStatus('${student.id}', '去上社團')">⚽ 去社團</button>
+                            <button class="action-btn btn-ok" onclick="replyStatus('${student.id}', '收到')">👌 收到</button>
+                        </div>
+                    </div>
+                `;
+                listDiv.innerHTML += html;
+            });
+
+            var popup = document.getElementById('popup');
             popup.style.display = 'flex';
 
-            // Add pop animation class to content
+            // 簡單的閃爍動畫
+            var content = popup.querySelector('.popup-content');
             content.classList.remove('new-arrival');
-            void content.offsetWidth; // trigger reflow
+            void content.offsetWidth;
             content.classList.add('new-arrival');
-
-            playDing();
         }
 
-        function replyStatus(statusText) {
-            if (!currentData) return;
-            log("📤 回傳狀態: " + statusText);
+        function closePopup() {
+            document.getElementById('popup').style.display = 'none';
+        }
 
-            database.ref('pickups/' + currentData.id).update({
+        function replyStatus(id, statusText) {
+            log("📤 回傳狀態: " + statusText + " (ID: " + id + ")");
+
+            database.ref('pickups/' + id).update({
                 status: statusText
             }).then(() => {
                 log("✅ 狀態更新成功");
+                // 移除該學生
+                activeStudents = activeStudents.filter(s => s.id !== id);
+                if (activeStudents.length > 0) {
+                    renderPopup(); // 還有學生，重繪
+                } else {
+                    closePopup(); // 沒學生了，關閉
+                }
             }).catch((err) => {
                 log("❌ 更新失敗: " + err);
             });
-
-            document.getElementById('popup').style.display = 'none';
-            currentData = null;
         }
 
         // 音效設定
