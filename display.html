@@ -150,6 +150,30 @@
                 transform: translateY(0);
             }
         }
+
+        @keyframes popIn {
+            0% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+
+            70% {
+                transform: scale(1.1);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .new-arrival {
+            animation: popIn 0.8s ease-out;
+            border: 4px solid #f1c40f !important;
+            /* 強調邊框 */
+            box-shadow: 0 0 20px #f1c40f;
+        }
     </style>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -224,8 +248,35 @@
             var now = new Date().getTime();
             if (now - data.timestamp > 3600000) return; // 1小時內
 
+            // 判斷是否為「剛加入」的資料 (例如 30 秒內)，若是則播放音效
+            if (now - data.timestamp < 30000 && !cardsData[data.id]) {
+                playNotificationSound();
+                data.isNew = true; // 標記為新資料
+            }
+
             cardsData[data.id] = data;
             renderAllCards();
+        }
+
+        function playNotificationSound() {
+            var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            var osc = audioCtx.createOscillator();
+            var gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            // 叮咚聲 (兩聲)
+            var now = audioCtx.currentTime;
+
+            // 第一聲 (高音)
+            osc.frequency.setValueAtTime(660, now);
+            gain.gain.setValueAtTime(0.1, now);
+
+            // 第二聲 (低音)
+            osc.frequency.setValueAtTime(550, now + 0.3);
+
+            osc.start(now);
+            osc.stop(now + 0.8);
         }
 
         function renderAllCards() {
@@ -258,7 +309,7 @@
                 }
 
                 var html = `
-          <div class="card" style="border-left-color: ${borderColors}">
+          <div class="card ${item.isNew ? 'new-arrival' : ''}" style="border-left-color: ${borderColors}">
             <div class="class-name">${item.class_name} 班</div>
             <div class="stu-name">${maskedName}</div>
             <div class="status ${statusClass}">${item.status}</div>
