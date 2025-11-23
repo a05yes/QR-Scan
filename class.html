@@ -3,63 +3,29 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>班級廣播 (互動版)</title>
+    <title>班級廣播 (測試除錯版)</title>
     <style>
         body {
-            font-family: 'Microsoft JhengHei', sans-serif;
-            background: #f0f2f5;
-            color: #333;
+            font-family: sans-serif;
             text-align: center;
             padding: 20px;
-            margin: 0;
         }
 
-        /* 選單樣式 */
-        #select-view {
-            max-width: 900px;
-            margin: 40px auto;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 25px;
+        #debug-msg {
+            color: red;
+            font-weight: bold;
+            margin: 20px;
+            border: 1px solid red;
+            padding: 10px;
         }
 
         .btn {
-            padding: 40px 0;
-            font-size: 40px;
-            background: white;
-            border-radius: 20px;
+            padding: 20px;
+            margin: 5px;
+            font-size: 20px;
             cursor: pointer;
-            font-weight: bold;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            transition: 0.2s;
         }
 
-        .btn:hover {
-            transform: translateY(-5px);
-            background: #3498db;
-            color: white;
-        }
-
-        /* 監聽中樣式 */
-        #monitor-view {
-            display: none;
-            margin-top: 80px;
-        }
-
-        .status-card {
-            background: white;
-            padding: 60px;
-            border-radius: 30px;
-            display: inline-block;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            border-bottom: 8px solid #2ecc71;
-        }
-
-        /* 彈出視窗樣式 */
         #popup {
             display: none;
             position: fixed;
@@ -67,61 +33,11 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(44, 62, 80, 0.98);
-            z-index: 9999;
-            flex-direction: column;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
             justify-content: center;
             align-items: center;
-        }
-
-        .student-info {
-            font-size: 80px;
-            font-weight: bold;
-            color: white;
-            margin-bottom: 40px;
-            text-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-        }
-
-        /* 回應按鈕區 */
-        .action-btn-group {
-            display: flex;
-            gap: 30px;
-        }
-
-        .action-btn {
-            padding: 20px 40px;
-            font-size: 32px;
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            font-weight: bold;
-            color: white;
-            transition: transform 0.1s;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-        }
-
-        .btn-pack {
-            background: #f39c12;
-        }
-
-        /* 收書包 - 黃 */
-        .btn-wc {
-            background: #3498db;
-        }
-
-        /* 上廁所 - 藍 */
-        .btn-club {
-            background: #9b59b6;
-        }
-
-        /* 社團 - 紫 */
-        .btn-ok {
-            background: #2ecc71;
-        }
-
-        /* 已知悉 - 綠 */
-        .action-btn:active {
-            transform: scale(0.95);
+            flex-direction: column;
         }
     </style>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -130,108 +46,81 @@
 
 <body>
 
+    <h1>🔧 班級廣播 (測試版)</h1>
+
+    <div id="debug-msg">等待操作...</div>
+
     <div id="select-view">
-        <h1>🏫 請選擇您的班級</h1>
-        <div class="grid">
-            <div class="btn" onclick="startMonitor('1a')">1a</div>
-            <div class="btn" onclick="startMonitor('2a')">2a</div>
-            <div class="btn" onclick="startMonitor('3a')">3a</div>
-            <div class="btn" onclick="startMonitor('4a')">4a</div>
-            <div class="btn" onclick="startMonitor('5a')">5a</div>
-            <div class="btn" onclick="startMonitor('6a')">6a</div>
-        </div>
+        <h3>請點選班級：</h3>
+        <button class="btn" onclick="startMonitor('1a')">1a</button>
+        <button class="btn" onclick="startMonitor('2a')">2a</button>
+        <button class="btn" onclick="startMonitor('3a')">3a</button>
+        <button class="btn" onclick="startMonitor('4a')">4a</button>
+        <button class="btn" onclick="startMonitor('5a')">5a</button>
+        <button class="btn" onclick="startMonitor('6a')">6a</button>
     </div>
 
-    <div id="monitor-view">
-        <div class="status-card">
-            <h2 id="class-title" style="font-size: 50px; margin: 0;"></h2>
-            <p>系統連線中...</p>
-            <button onclick="location.reload()">重選</button>
-        </div>
+    <div id="monitor-view" style="display:none;">
+        <h2 id="class-title"></h2>
+        <p>正在監聽 Firebase 的 "pickups" 節點...</p>
+        <p>請現在去掃描新的 QR Code</p>
     </div>
 
     <div id="popup">
-        <div style="font-size: 30px; color: #f1c40f; margin-bottom:20px;">🔔 家長已抵達</div>
-        <div id="popup-info" class="student-info"></div>
-
-        <div class="action-btn-group">
-            <button class="action-btn btn-pack" onclick="replyStatus('正在收書包')">🎒 收書包</button>
-            <button class="action-btn btn-wc" onclick="replyStatus('上廁所')">🚻 上廁所</button>
-            <button class="action-btn btn-club" onclick="replyStatus('去上社團')">⚽ 去社團</button>
-            <button class="action-btn btn-ok" onclick="replyStatus('收到')">👌 收到</button>
-        </div>
+        <h1>🔔 家長已抵達</h1>
+        <h1 id="popup-name" style="font-size:80px; color:yellow;"></h1>
+        <button class="btn" onclick="closePopup()">收到</button>
     </div>
 
     <script>
+        // ✅ 您的 Firebase 設定
         var firebaseConfig = { databaseURL: "https://schoolpickup-7afca-default-rtdb.asia-southeast1.firebasedatabase.app/" };
         firebase.initializeApp(firebaseConfig);
         var database = firebase.database();
 
         var myClass = "";
-        var currentData = null; // 儲存目前彈窗的學生資料
-        var audioCtx;
+
+        function log(msg) {
+            console.log(msg);
+            document.getElementById('debug-msg').innerText = "系統狀態: " + msg;
+        }
 
         function startMonitor(cls) {
             myClass = cls;
             document.getElementById('select-view').style.display = 'none';
             document.getElementById('monitor-view').style.display = 'block';
-            document.getElementById('class-title').innerText = cls + " 班";
-            initAudio();
+            document.getElementById('class-title').innerText = "正在監聽: " + cls + " 班";
 
-            // 監聽 pickups 節點，只抓最後一筆，但透過 timestamp 過濾
-            // 這裡簡化邏輯：監聽所有變動，前端過濾
-            database.ref('pickups').limitToLast(1).on('child_added', (snapshot) => {
+            log("開始連線 Firebase...");
+
+            // 監聽 pickups 節點
+            var ref = database.ref('pickups');
+
+            // 這裡用 limitToLast(1) 抓最新一筆
+            ref.limitToLast(1).on('child_added', (snapshot) => {
                 var data = snapshot.val();
-                checkAndAlert(data);
-            });
-        }
+                log("收到資料！" + JSON.stringify(data));
 
-        function checkAndAlert(data) {
-            var now = new Date().getTime();
-            // 1. 檢查是否過期 (超過30秒的舊資料不跳)
-            if (now - data.timestamp > 30000) return;
-            // 2. 檢查班級
-            if (data.class_name.toLowerCase() === myClass.toLowerCase()) {
-                currentData = data; // 暫存起來，等下回覆要用 ID
-                showPopup(data.name);
-            }
+                // ❌ 移除了時間檢查 (now - timestamp)
+                // ❌ 移除了避免重複檢查
+
+                // 只檢查班級
+                if (data.class_name.toLowerCase() === myClass.toLowerCase()) {
+                    log("班級符合！跳出視窗");
+                    showPopup(data.name);
+                } else {
+                    log("班級不符合 (收到:" + data.class_name + ", 我是:" + myClass + ")");
+                }
+            });
         }
 
         function showPopup(name) {
-            document.getElementById('popup-info').innerText = name;
+            document.getElementById('popup-name').innerText = name;
             document.getElementById('popup').style.display = 'flex';
-            playDing();
         }
 
-        // 老師點選按鈕後觸發
-        function replyStatus(statusText) {
-            if (!currentData) return;
-
-            // 更新 Firebase 資料庫
-            database.ref('pickups/' + currentData.id).update({
-                status: statusText
-            });
-
-            // 關閉視窗
+        function closePopup() {
             document.getElementById('popup').style.display = 'none';
-            currentData = null;
-        }
-
-        function initAudio() {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            var osc = audioCtx.createOscillator(); osc.connect(audioCtx.destination);
-            osc.start(0); osc.stop(0.01);
-        }
-
-        function playDing() {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            var osc = audioCtx.createOscillator();
-            var gain = audioCtx.createGain();
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.type = 'sine'; osc.frequency.setValueAtTime(660, audioCtx.currentTime);
-            gain.gain.setValueAtTime(1, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
-            osc.start(audioCtx.currentTime); osc.stop(audioCtx.currentTime + 1.5);
         }
     </script>
 </body>
