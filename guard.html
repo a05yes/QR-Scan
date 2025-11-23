@@ -73,7 +73,21 @@
             color: #f39c12;
         }
 
-        /* 黃色：傳送中 */
+        /* Debug Log */
+        #debug-log {
+            width: 90%;
+            margin: 20px auto;
+            height: 150px;
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+            text-align: left;
+            padding: 10px;
+            overflow-y: scroll;
+            border: 2px solid #555;
+            border-radius: 5px;
+            font-size: 12px;
+        }
     </style>
 </head>
 
@@ -93,6 +107,8 @@
     <div id="msg-box">
         <div id="status-msg" class="status-text wait">請將 QR Code 對準鏡頭</div>
     </div>
+
+    <div id="debug-log">系統日誌 (Log):<br></div>
 
     <script>
         // ==========================================
@@ -114,7 +130,17 @@
         }
         // ==========================================
 
+        // ==========================================
+
         var isScanning = true;
+
+        function log(msg) {
+            var box = document.getElementById('debug-log');
+            var time = new Date().toLocaleTimeString();
+            box.innerHTML += `[${time}] ${msg}<br>`;
+            box.scrollTop = box.scrollHeight;
+            console.log(msg);
+        }
 
         function onScanSuccess(decodedText) {
             if (!isScanning) return;
@@ -122,15 +148,21 @@
             // 1. 鎖定掃描，避免重複送出
             isScanning = false;
             updateDisplay("⏳ 資料傳送中...", "sending");
+            log("📷 掃描成功: " + decodedText);
 
             // 2. 呼叫 Google Apps Script (後端)
+            log("📡 正在呼叫 Google API...");
             fetch(API_URL, {
                 method: 'POST',
                 body: JSON.stringify({ action: "scan", studentId: decodedText }),
                 headers: { "Content-Type": "text/plain" }
             })
-                .then(response => response.json())
+                .then(response => {
+                    log("📥 收到 API 回應 status: " + response.status);
+                    return response.json();
+                })
                 .then(data => {
+                    log("📦 API 資料: " + JSON.stringify(data));
                     if (data.status === 'success') {
                         // 顯示成功訊息 (班級 + 姓名)
                         updateDisplay("✅ " + data.class_name + "<br>" + data.name + " 已登記", "success");
@@ -138,6 +170,7 @@
 
                         // 直接寫入 Firebase
                         try {
+                            log("🔥 正在寫入 Firebase...");
                             var newPostRef = database.ref('pickups').push();
                             newPostRef.set({
                                 id: newPostRef.key,
@@ -145,15 +178,19 @@
                                 name: data.name,
                                 status: "家長已到", // 預設狀態
                                 timestamp: firebase.database.ServerValue.TIMESTAMP
+                            }, function (error) {
+                                if (error) log("❌ Firebase 寫入錯誤: " + error);
+                                else log("✅ Firebase 寫入成功");
                             });
-                            console.log("Written to Firebase directly");
                         } catch (e) {
                             console.error("Firebase write error:", e);
+                            log("❌ Firebase 錯誤: " + e.message);
                         }
 
                     } else {
                         // 顯示錯誤 (例如找不到人)
                         updateDisplay("❌ " + data.message, "error");
+                        log("❌ API 回傳失敗: " + data.message);
                         playBeep(false); // 失敗音效
                     }
 
@@ -161,11 +198,13 @@
                     setTimeout(function () {
                         updateDisplay("請將 QR Code 對準鏡頭", "wait");
                         isScanning = true;
+                        log("🔄 恢復掃描模式");
                     }, 3000);
                 })
                 .catch(err => {
                     console.error(err);
                     updateDisplay("❌ 網路連線錯誤", "error");
+                    log("❌ 網路/API 錯誤: " + err);
                     setTimeout(() => { isScanning = true; }, 3000);
                 });
         }
