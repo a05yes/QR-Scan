@@ -73,205 +73,205 @@
             color: #f39c12;
         }
 
-        /* Debug Log */
-        #debug-log {
-            width: 90%;
-            margin: 20px auto;
-            height: 150px;
-            background: #000;
-            color: #0f0;
-            font-family: monospace;
-            text-align: left;
-            padding: 10px;
-            overflow-y: scroll;
-            border: 2px solid #555;
-            border-radius: 5px;
-            font-size: 12px;
-        }
-    </style>
-</head>
-
-<body>
-
-    <h2>👮‍♂️ 家長接送掃描站</h2>
-    <div id="reader"></div>
-
-    <!-- 測試按鈕 -->
-    <div style="margin: 20px;">
-        <button onclick="testConnection()"
-            style="padding: 10px 20px; font-size: 18px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">
-            🛠️ 測試連線 (發送 1a 班測試資料)
-        </button>
-    </div>
-
-    <div id="msg-box">
-        <div id="status-msg" class="status-text wait">請將 QR Code 對準鏡頭</div>
-    </div>
-
-    <div id="debug-log">系統日誌 (Log):<br></div>
-
-    <script>
-        // ==========================================
+        <style></head><body><h2>👮‍♂️ 家長接送掃描站</h2><div id="reader"></div>< !-- 測試按鈕 --><div style="margin: 20px;"><button onclick="testConnection()"
+        style="padding: 10px 20px; font-size: 18px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">🛠️ 測試連線 (發送 1a 班測試資料) </button></div><div id="msg-box"><div id="status-msg" class="status-text wait">請將 QR Code 對準鏡頭</div></div><script> // ==========================================
         // ✅ 已填入您的 Google Script 網址
-        var API_URL = "https://script.google.com/macros/s/AKfycby-q-J_Hs7fEFbIWFvhNKU0GW8gp2TI43B2QLzc8-qPlR7NcGrCDeiNfrcto_Y04oAtCw/exec";
+        var API_URL="https://script.google.com/macros/s/AKfycby-q-J_Hs7fEFbIWFvhNKU0GW8gp2TI43B2QLzc8-qPlR7NcGrCDeiNfrcto_Y04oAtCw/exec";
 
         // Firebase 設定
-        var firebaseConfig = {
+        var firebaseConfig= {
             databaseURL: "https://schoolpickup-7afca-default-rtdb.asia-southeast1.firebasedatabase.app/"
-        };
+        }
+
+        ;
 
         // 初始化 Firebase
         try {
             firebase.initializeApp(firebaseConfig);
-            var database = firebase.database();
+            var database=firebase.database();
             console.log("Firebase initialized");
-        } catch (e) {
+        }
+
+        catch (e) {
             console.error("Firebase init error:", e);
         }
-        // ==========================================
 
         // ==========================================
 
-        var isScanning = true;
+        // ==========================================
+
+        var isScanning=true;
 
         function log(msg) {
-            var box = document.getElementById('debug-log');
-            var time = new Date().toLocaleTimeString();
-            box.innerHTML += `[${time}] ${msg}<br>`;
-            box.scrollTop = box.scrollHeight;
             console.log(msg);
         }
 
         function onScanSuccess(decodedText) {
-            if (!isScanning) return;
+            if ( !isScanning) return;
 
             // 1. 鎖定掃描，避免重複送出
-            isScanning = false;
+            isScanning=false;
             updateDisplay("⏳ 資料傳送中...", "sending");
             log("📷 掃描成功: " + decodedText);
 
             // 2. 呼叫 Google Apps Script (後端)
             log("📡 正在呼叫 Google API...");
-            fetch(API_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: "scan", studentId: decodedText }),
-                headers: { "Content-Type": "text/plain" }
-            })
-                .then(response => {
-                    log("📥 收到 API 回應 status: " + response.status);
-                    return response.json();
-                })
-                .then(data => {
-                    log("📦 API 資料: " + JSON.stringify(data));
-                    if (data.status === 'success') {
-                        // 顯示成功訊息 (班級 + 姓名)
-                        updateDisplay("✅ " + data.class_name + "<br>" + data.name + " 已登記", "success");
-                        playBeep(true); // 成功音效
 
-                        // 直接寫入 Firebase
-                        try {
-                            log("🔥 正在寫入 Firebase...");
-                            var newPostRef = database.ref('pickups').push();
-                            newPostRef.set({
-                                id: newPostRef.key,
-                                class_name: data.class_name,
-                                name: data.name,
-                                status: "家長已到", // 預設狀態
-                                timestamp: firebase.database.ServerValue.TIMESTAMP
-                            }, function (error) {
-                                if (error) log("❌ Firebase 寫入錯誤: " + error);
-                                else log("✅ Firebase 寫入成功");
-                            });
-                        } catch (e) {
-                            console.error("Firebase write error:", e);
-                            log("❌ Firebase 錯誤: " + e.message);
+            fetch(API_URL, {
+
+                method: 'POST',
+                body: JSON.stringify({
+                    action: "scan", studentId: decodedText
+
+                }),
+            headers: {
+                "Content-Type": "text/plain"
+            }
+
+        }) .then(response=> {
+                log("📥 收到 API 回應 status: " + response.status);
+                return response.json();
+
+            }) .then(data=> {
+                log("📦 API 資料: " + JSON.stringify(data));
+
+                if (data.status==='success') {
+                    // 顯示成功訊息 (班級 + 姓名)
+                    updateDisplay("✅ " + data.class_name + "<br>" + data.name + " 已登記", "success");
+                    playBeep(true); // 成功音效
+
+                    // 直接寫入 Firebase
+                    try {
+                        log("🔥 正在寫入 Firebase...");
+                        var newPostRef=database.ref('pickups').push();
+
+                        newPostRef.set({
+                            id: newPostRef.key,
+                            class_name: data.class_name,
+                            name: data.name,
+                            status: "家長已到", // 預設狀態
+                            timestamp: firebase.database.ServerValue.TIMESTAMP
                         }
 
-                    } else {
-                        // 顯示錯誤 (例如找不到人)
-                        updateDisplay("❌ " + data.message, "error");
-                        log("❌ API 回傳失敗: " + data.message);
-                        playBeep(false); // 失敗音效
+                        , function (error) {
+                            if (error) log("❌ Firebase 寫入錯誤: " + error);
+                            else log("✅ Firebase 寫入成功");
+                        });
+                }
+
+                catch (e) {
+                    console.error("Firebase write error:", e);
+                    log("❌ Firebase 錯誤: " + e.message);
+                }
+
+            }
+
+            else {
+                // 顯示錯誤 (例如找不到人)
+                updateDisplay("❌ " + data.message, "error");
+                log("❌ API 回傳失敗: " + data.message);
+                playBeep(false); // 失敗音效
+            }
+
+            // 3. 等待 3 秒後恢復掃描
+            setTimeout(function () {
+                    updateDisplay("請將 QR Code 對準鏡頭", "wait");
+                    isScanning=true;
+                    log("🔄 恢復掃描模式");
+                }
+
+                , 3000);
+
+        }) .catch(err=> {
+                console.error(err);
+                updateDisplay("❌ 網路連線錯誤", "error");
+                log("❌ 網路/API 錯誤: " + err);
+
+                setTimeout(()=> {
+                        isScanning=true;
                     }
 
-                    // 3. 等待 3 秒後恢復掃描
-                    setTimeout(function () {
-                        updateDisplay("請將 QR Code 對準鏡頭", "wait");
-                        isScanning = true;
-                        log("🔄 恢復掃描模式");
-                    }, 3000);
-                })
-                .catch(err => {
-                    console.error(err);
-                    updateDisplay("❌ 網路連線錯誤", "error");
-                    log("❌ 網路/API 錯誤: " + err);
-                    setTimeout(() => { isScanning = true; }, 3000);
-                });
+                    , 3000);
+            });
         }
 
         function updateDisplay(text, type) {
-            var el = document.getElementById('status-msg');
-            el.innerHTML = text;
-            el.className = "status-text " + type;
+            var el=document.getElementById('status-msg');
+            el.innerHTML=text;
+            el.className="status-text "+type;
         }
 
         // 音效功能
         function playBeep(isSuccess) {
-            var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            var osc = audioCtx.createOscillator();
-            var gain = audioCtx.createGain();
+            var audioCtx=new (window.AudioContext || window.webkitAudioContext)();
+            var osc=audioCtx.createOscillator();
+            var gain=audioCtx.createGain();
             osc.connect(gain);
             gain.connect(audioCtx.destination);
 
             if (isSuccess) {
-                osc.type = 'sine'; osc.frequency.value = 880;
+                osc.type='sine';
+                osc.frequency.value=880;
                 gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                osc.start(); osc.stop(audioCtx.currentTime + 0.2);
-            } else {
-                osc.type = 'sawtooth'; osc.frequency.value = 150;
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.2);
+            }
+
+            else {
+                osc.type='sawtooth';
+                osc.frequency.value=150;
                 gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
             }
         }
 
         // 啟動相機
-        var html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+        var html5QrcodeScanner=new Html5QrcodeScanner("reader", {
+            fps: 10, qrbox: 250
+        });
         html5QrcodeScanner.render(onScanSuccess);
 
         // 測試功能
         function testConnection() {
-            var testClass = "1a";
-            var testName = "測試學生" + Math.floor(Math.random() * 100);
+            var testClass="1a";
+            var testName="測試學生"+Math.floor(Math.random() * 100);
 
             updateDisplay("⏳ 正在發送測試資料...", "sending");
 
             try {
-                var newPostRef = database.ref('pickups').push();
+                var newPostRef=database.ref('pickups').push();
+
                 newPostRef.set({
                     id: newPostRef.key,
                     class_name: testClass,
                     name: testName,
                     status: "家長已到",
                     timestamp: firebase.database.ServerValue.TIMESTAMP
-                }, function (error) {
+                }
+
+                , function (error) {
                     if (error) {
                         updateDisplay("❌ Firebase 寫入失敗: " + error.message, "error");
-                    } else {
+                    }
+
+                    else {
                         updateDisplay("✅ 測試資料已發送！<br>請檢查 1a 班畫面", "success");
                         playBeep(true);
                     }
                 });
-            } catch (e) {
-                updateDisplay("❌ 測試錯誤: " + e.message, "error");
+        }
+
+        catch (e) {
+            updateDisplay("❌ 測試錯誤: " + e.message, "error");
+        }
+
+        setTimeout(function () {
+                updateDisplay("請將 QR Code 對準鏡頭", "wait");
+                isScanning=true;
             }
 
-            setTimeout(function () {
-                updateDisplay("請將 QR Code 對準鏡頭", "wait");
-                isScanning = true;
-            }, 3000);
+            , 3000);
         }
-    </script>
 
-</body>
-
-</html>
+        </script></body></html>
