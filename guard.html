@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>警衛掃描站</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
         body {
             font-family: 'Microsoft JhengHei', sans-serif;
@@ -88,6 +90,20 @@
         // ==========================================
         // ✅ 已填入您的 Google Script 網址
         var API_URL = "https://script.google.com/macros/s/AKfycby-q-J_Hs7fEFbIWFvhNKU0GW8gp2TI43B2QLzc8-qPlR7NcGrCDeiNfrcto_Y04oAtCw/exec";
+
+        // Firebase 設定
+        var firebaseConfig = {
+            databaseURL: "https://schoolpickup-7afca-default-rtdb.asia-southeast1.firebasedatabase.app/"
+        };
+
+        // 初始化 Firebase
+        try {
+            firebase.initializeApp(firebaseConfig);
+            var database = firebase.database();
+            console.log("Firebase initialized");
+        } catch (e) {
+            console.error("Firebase init error:", e);
+        }
         // ==========================================
 
         var isScanning = true;
@@ -111,6 +127,22 @@
                         // 顯示成功訊息 (班級 + 姓名)
                         updateDisplay("✅ " + data.class_name + "<br>" + data.name + " 已登記", "success");
                         playBeep(true); // 成功音效
+
+                        // 直接寫入 Firebase
+                        try {
+                            var newPostRef = database.ref('pickups').push();
+                            newPostRef.set({
+                                id: newPostRef.key,
+                                class_name: data.class_name,
+                                name: data.name,
+                                status: "家長已到", // 預設狀態
+                                timestamp: firebase.database.ServerValue.TIMESTAMP
+                            });
+                            console.log("Written to Firebase directly");
+                        } catch (e) {
+                            console.error("Firebase write error:", e);
+                        }
+
                     } else {
                         // 顯示錯誤 (例如找不到人)
                         updateDisplay("❌ " + data.message, "error");
