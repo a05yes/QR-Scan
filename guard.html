@@ -1,59 +1,165 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>警衛掃描站 (GitHub版)</title>
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-  <style>
-    body { font-family: sans-serif; background-color: #222; color: white; text-align: center; padding: 20px; }
-    #reader { width: 100%; max-width: 500px; margin: 0 auto; background: white; }
-    #msg { margin-top: 20px; font-size: 24px; font-weight: bold; }
-  </style>
-</head>
-<body>
-  <h2>👮‍♂️ 掃描站</h2>
-  <div id="reader"></div>
-  <div id="msg">請掃描 QR Code</div>
-
-  <script>
-    // ==========================================
-    // ⚠️ 請將下方網址換成您的 Google Script 網址
-    var API_URL = "https://script.google.com/macros/s/您的ID/exec"; 
-    // ==========================================
-
-    var isScanning = true;
-
-    function onScanSuccess(decodedText) {
-      if (!isScanning) return;
-      isScanning = false;
-      document.getElementById('msg').innerText = "⏳ 傳送中...";
-
-      // 使用 fetch 發送 POST 請求到 Google Script
-      fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: "scan", studentId: decodedText }),
-        // 這裡用 text/plain 是為了避開 CORS 檢查，這很關鍵
-        headers: { "Content-Type": "text/plain" } 
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.status === 'success') {
-          document.getElementById('msg').innerHTML = `<span style="color:#2ecc71">✅ ${data.class_name}<br>${data.name}</span>`;
-        } else {
-          document.getElementById('msg').innerHTML = `<span style="color:red">❌ ${data.message}</span>`;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>警衛掃描站</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        body {
+            font-family: 'Microsoft JhengHei', sans-serif;
+            background-color: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            margin: 0;
         }
-        setTimeout(() => { isScanning = true; document.getElementById('msg').innerText = "請掃描 QR Code"; }, 3000);
-      })
-      .catch(err => {
-        console.error(err);
-        document.getElementById('msg').innerText = "❌ 網路錯誤";
-        setTimeout(() => { isScanning = true; }, 3000);
-      });
-    }
 
-    var html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-    html5QrcodeScanner.render(onScanSuccess);
-  </script>
+        h2 {
+            color: #f1c40f;
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+        }
+
+        /* 掃描框美化 */
+        #reader {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 5px solid #34495e;
+        }
+
+        /* 訊息顯示區 */
+        #msg-box {
+            margin-top: 30px;
+            min-height: 120px;
+            padding: 20px;
+            border-radius: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .status-text {
+            font-size: 28px;
+            font-weight: bold;
+            line-height: 1.5;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        .success {
+            color: #2ecc71;
+        }
+
+        /* 綠色：成功 */
+        .error {
+            color: #e74c3c;
+        }
+
+        /* 紅色：失敗 */
+        .wait {
+            color: #ecf0f1;
+        }
+
+        /* 白色：等待中 */
+        .sending {
+            color: #f39c12;
+        }
+
+        /* 黃色：傳送中 */
+    </style>
+</head>
+
+<body>
+
+    <h2>👮‍♂️ 家長接送掃描站</h2>
+    <div id="reader"></div>
+
+    <div id="msg-box">
+        <div id="status-msg" class="status-text wait">請將 QR Code 對準鏡頭</div>
+    </div>
+
+    <script>
+        // ==========================================
+        // ✅ 已填入您的 Google Script 網址
+        var API_URL = "https://script.google.com/macros/s/AKfycby-q-J_Hs7fEFbIWFvhNKU0GW8gp2TI43B2QLzc8-qPlR7NcGrCDeiNfrcto_Y04oAtCw/exec";
+        // ==========================================
+
+        var isScanning = true;
+
+        function onScanSuccess(decodedText) {
+            if (!isScanning) return;
+
+            // 1. 鎖定掃描，避免重複送出
+            isScanning = false;
+            updateDisplay("⏳ 資料傳送中...", "sending");
+
+            // 2. 呼叫 Google Apps Script (後端)
+            fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: "scan", studentId: decodedText }),
+                headers: { "Content-Type": "text/plain" }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // 顯示成功訊息 (班級 + 姓名)
+                        updateDisplay("✅ " + data.class_name + "<br>" + data.name + " 已登記", "success");
+                        playBeep(true); // 成功音效
+                    } else {
+                        // 顯示錯誤 (例如找不到人)
+                        updateDisplay("❌ " + data.message, "error");
+                        playBeep(false); // 失敗音效
+                    }
+
+                    // 3. 等待 3 秒後恢復掃描
+                    setTimeout(function () {
+                        updateDisplay("請將 QR Code 對準鏡頭", "wait");
+                        isScanning = true;
+                    }, 3000);
+                })
+                .catch(err => {
+                    console.error(err);
+                    updateDisplay("❌ 網路連線錯誤", "error");
+                    setTimeout(() => { isScanning = true; }, 3000);
+                });
+        }
+
+        function updateDisplay(text, type) {
+            var el = document.getElementById('status-msg');
+            el.innerHTML = text;
+            el.className = "status-text " + type;
+        }
+
+        // 音效功能
+        function playBeep(isSuccess) {
+            var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            var osc = audioCtx.createOscillator();
+            var gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (isSuccess) {
+                osc.type = 'sine'; osc.frequency.value = 880;
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+            } else {
+                osc.type = 'sawtooth'; osc.frequency.value = 150;
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            }
+        }
+
+        // 啟動相機
+        var html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+        html5QrcodeScanner.render(onScanSuccess);
+    </script>
+
 </body>
+
 </html>
