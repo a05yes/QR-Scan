@@ -82,6 +82,14 @@
     <h2>👮‍♂️ 家長接送掃描站</h2>
     <div id="reader"></div>
 
+    <!-- 測試按鈕 -->
+    <div style="margin: 20px;">
+        <button onclick="testConnection()"
+            style="padding: 10px 20px; font-size: 18px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            🛠️ 測試連線 (發送 1a 班測試資料)
+        </button>
+    </div>
+
     <div id="msg-box">
         <div id="status-msg" class="status-text wait">請將 QR Code 對準鏡頭</div>
     </div>
@@ -190,6 +198,39 @@
         // 啟動相機
         var html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
         html5QrcodeScanner.render(onScanSuccess);
+
+        // 測試功能
+        function testConnection() {
+            var testClass = "1a";
+            var testName = "測試學生" + Math.floor(Math.random() * 100);
+
+            updateDisplay("⏳ 正在發送測試資料...", "sending");
+
+            try {
+                var newPostRef = database.ref('pickups').push();
+                newPostRef.set({
+                    id: newPostRef.key,
+                    class_name: testClass,
+                    name: testName,
+                    status: "家長已到",
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                }, function (error) {
+                    if (error) {
+                        updateDisplay("❌ Firebase 寫入失敗: " + error.message, "error");
+                    } else {
+                        updateDisplay("✅ 測試資料已發送！<br>請檢查 1a 班畫面", "success");
+                        playBeep(true);
+                    }
+                });
+            } catch (e) {
+                updateDisplay("❌ 測試錯誤: " + e.message, "error");
+            }
+
+            setTimeout(function () {
+                updateDisplay("請將 QR Code 對準鏡頭", "wait");
+                isScanning = true;
+            }, 3000);
+        }
     </script>
 
 </body>
