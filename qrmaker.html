@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batch QR Code Generator</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        :root {
+            --primary-hue: 250;
+            --bg-dark: hsl(var(--primary-hue), 20%, 8%);
+            --glass-bg: hsla(var(--primary-hue), 20%, 15%, 0.6);
+            --glass-border: hsla(var(--primary-hue), 20%, 80%, 0.1);
+            --text-main: hsl(var(--primary-hue), 10%, 95%);
+            --text-muted: hsl(var(--primary-hue), 10%, 70%);
+            --accent: hsl(280, 80%, 60%);
+            --accent-glow: hsl(280, 80%, 60%, 0.5);
+            --btn-primary-bg: linear-gradient(135deg, hsl(260, 80%, 60%), hsl(290, 80%, 60%));
+            --btn-hover-transform: translateY(-2px);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Background Animation */
+        .background-blobs {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.4;
+            animation: float 20s infinite alternate ease-in-out;
+        }
+
+        .blob-1 {
+            width: 400px;
+            height: 400px;
+            background: hsl(260, 80%, 50%);
+            top: -100px;
+            left: -100px;
+        }
+
+        .blob-2 {
+            width: 500px;
+            height: 500px;
+            background: hsl(300, 80%, 50%);
+            bottom: -150px;
+            right: -150px;
+            animation-delay: -5s;
+        }
+
+        .blob-3 {
+            width: 300px;
+            height: 300px;
+            background: hsl(220, 80%, 50%);
+            top: 40%;
+            left: 60%;
+            animation-delay: -10s;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            100% {
+                transform: translate(30px, 50px) scale(1.1);
+            }
+        }
+
+        /* Layout */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #fff, #bbaaff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        /* Glass Card */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        /* Input Section */
+        .input-section textarea {
+            width: 100%;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1rem;
+            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            resize: vertical;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .input-section textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+
+        .actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border-radius: 12px;
+            border: none;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn.primary {
+            background: var(--btn-primary-bg);
+            color: white;
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+
+        .btn.primary:hover {
+            transform: var(--btn-hover-transform);
+            box-shadow: 0 8px 25px var(--accent-glow);
+        }
+
+        .btn.secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            border: 1px solid var(--glass-border);
+        }
+
+        .btn.secondary:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.15);
+            transform: var(--btn-hover-transform);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Results Grid */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .qr-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            transition: transform 0.3s ease;
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        .qr-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+        }
+
+        .qr-card h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-align: center;
+            word-break: break-all;
+        }
+
+        .qr-code-container {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .qr-code-container img {
+            display: block;
+            max-width: 100%;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <main class="container">
+        <header>
+            <h1>Batch QR Code Generator</h1>
+            <p>Enter student names below to generate QR codes instantly.</p>
+        </header>
+
+        <section class="input-section">
+            <div class="glass-card">
+                <textarea id="nameInput"
+                    placeholder="Enter names here (one per line)...&#10;Alice&#10;Bob&#10;Charlie"></textarea>
+                <div class="actions">
+                    <button id="generateBtn" class="btn primary">
+                        <span class="icon">✨</span> Generate QR Codes
+                    </button>
+                    <button id="downloadAllBtn" class="btn secondary" disabled>
+                        <span class="icon">📦</span> Download ZIP
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section id="resultsSection" class="results-grid">
+            <!-- QR Codes will be generated here -->
+        </section>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const nameInput = document.getElementById('nameInput');
+            const generateBtn = document.getElementById('generateBtn');
+            const downloadAllBtn = document.getElementById('downloadAllBtn');
+            const resultsSection = document.getElementById('resultsSection');
+
+            let generatedQRs = [];
+
+            generateBtn.addEventListener('click', () => {
+                const text = nameInput.value.trim();
+                if (!text) {
+                    alert('Please enter at least one name.');
+                    return;
+                }
+
+                const names = text.split('\n').map(name => name.trim()).filter(name => name.length > 0);
+
+                if (names.length === 0) {
+                    alert('No valid names found.');
+                    return;
+                }
+
+                generateQRCodes(names);
+            });
+
+            downloadAllBtn.addEventListener('click', downloadAllAsZip);
+
+            async function generateQRCodes(names) {
+                // Clear previous results
+                resultsSection.innerHTML = '';
+                generatedQRs = [];
+                downloadAllBtn.disabled = true;
+
+                // Process each name
+                for (const name of names) {
+                    const card = createQRCard(name);
+                    resultsSection.appendChild(card);
+                }
+
+                // Wait for QR codes to be rendered (give it some time)
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // Now capture the data
+                const cards = resultsSection.querySelectorAll('.qr-card');
+                cards.forEach(card => {
+                    const name = card.querySelector('h3').textContent;
+                    const img = card.querySelector('img');
+                    const canvas = card.querySelector('canvas');
+
+                    let dataUrl = '';
+                    if (img && img.src && img.src.startsWith('data:image')) {
+                        dataUrl = img.src;
+                    } else if (canvas) {
+                        dataUrl = canvas.toDataURL('image/png');
+                    }
+
+                    if (dataUrl) {
+                        generatedQRs.push({
+                            name: name,
+                            dataUrl: dataUrl
+                        });
+                    }
+                });
+
+                if (generatedQRs.length > 0) {
+                    downloadAllBtn.disabled = false;
+                } else {
+                    // Retry once more if empty? Or just alert
+                    console.warn('No QR codes captured. Rendering might be slow.');
+                }
+            }
+
+            function createQRCard(name) {
+                const card = document.createElement('div');
+                card.className = 'qr-card';
+
+                const title = document.createElement('h3');
+                title.textContent = name;
+
+                const qrContainer = document.createElement('div');
+                qrContainer.className = 'qr-code-container';
+                // Unique ID for qrcode.js to target
+                const qrId = 'qr-' + Math.random().toString(36).substr(2, 9);
+                qrContainer.id = qrId;
+
+                card.appendChild(title);
+                card.appendChild(qrContainer);
+
+                // Generate QR Code
+                new QRCode(qrContainer, {
+                    text: name,
+                    width: 128,
+                    height: 128,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+
+                // Add individual download button
+                const downloadBtn = document.createElement('button');
+                downloadBtn.className = 'btn secondary';
+                downloadBtn.style.fontSize = '0.8rem';
+                downloadBtn.style.padding = '0.5rem 1rem';
+                downloadBtn.innerHTML = '<span class="icon">⬇️</span> Save';
+                downloadBtn.onclick = () => {
+                    const img = qrContainer.querySelector('img') || qrContainer.querySelector('canvas');
+                    if (img) {
+                        const url = img.src || img.toDataURL('image/png');
+                        saveAs(url, `${name}.png`);
+                    }
+                };
+                card.appendChild(downloadBtn);
+
+                return card;
+            }
+
+            async function downloadAllAsZip() {
+                if (generatedQRs.length === 0) return;
+
+                const zip = new JSZip();
+                const folder = zip.folder("qrcodes");
+
+                generatedQRs.forEach(qr => {
+                    // Remove header "data:image/png;base64,"
+                    const base64Data = qr.dataUrl.split(',')[1];
+                    folder.file(`${qr.name}.png`, base64Data, { base64: true });
+                });
+
+                const content = await zip.generateAsync({ type: "blob" });
+                saveAs(content, "qrcodes.zip");
+            }
+        });
+    </script>
+</body>
+
+</html>
